@@ -1,0 +1,278 @@
+//Constants
+//-----------------------------------------------------------------------------
+//Urls
+const clipUrl = "https://s3.amazonaws.com/freecodecamp/drums/";
+const fileExtension = ".mp3";
+//Actions
+const HIT_DRUM = "HIT_DRUM";
+const TOGGLE_POWER = "TOGGLE_POWER";
+const TOGGLE_BANK = "TOGGLE_BANK";
+const ADJUST_VOLUME = "ADJUST_VOLUME";
+//Labels
+const SMOOTH_PIANO_KIT = "Smooth Piano Kit";
+const HEATER_KIT = "Heater Kit";
+const VOLUME = "Volume";
+const POWER = "Power";
+const BANK = "Bank";
+const CHORD = "Chord";
+//Others
+const keys = [
+  'Q', 'W', 'E', 
+  'A', 'S', 'D', 
+  'Z', 'X', 'C'
+];
+const files = [
+  "Heater-1", "Heater-2", "Heater-3", 
+  "Heater-4_1", "Heater-6", "Bld_H1",
+  "punchy_kick_1", "side_stick_1", "Brk_Snr"
+];
+//Drum Pads
+const generateDrumPads = () => {
+  let pads = [];
+  for (let i = 0; i < keys.length; i++) {
+    let chordId = files[i].replace(/_/g, '-');
+    pads.push({
+      id: chordId,
+      index: i,
+      chord: keys[i],
+      src: clipUrl + files[i] + fileExtension
+    });
+  }
+  return pads;
+};
+const drumPads = generateDrumPads();
+
+//Action Creators
+//-----------------------------------------------------------------------------
+const hitDrumAction = (index) => {
+  return {
+    type: HIT_DRUM,
+    pad: drumPads[index]
+  };
+};
+
+const togglePowerAction = () => {
+  return {
+    type: TOGGLE_POWER
+  };
+};
+
+const toggleBankAction = () => {
+  return {
+    type: TOGGLE_BANK
+  };
+};
+
+const adjustVolumeAction = (volume) => {
+  return {
+    type: ADJUST_VOLUME,
+    volume
+  };
+};
+
+//Default State
+//-----------------------------------------------------------------------------
+const defaultState = {
+  volume: 30,
+  power: true,
+  bank: false,
+  display: "No Display"
+};
+
+//Business Logic
+//-----------------------------------------------------------------------------
+const hitDrum = (pad) => {
+  document.getElementById(pad.chord).play();
+  return {
+    display: pad.id.replace(/-/g, ' ')
+  };
+};
+
+const toggleBank = (bank) => {
+  return {
+    bank: !bank,
+    display: !bank? SMOOTH_PIANO_KIT : HEATER_KIT
+  };
+};
+
+const togglePower = (power) => {
+  return {
+    power: !power,
+    display: ''
+  };
+};
+
+const adjustVolume = (volume) => {
+  return {
+    volume: volume,
+    display: VOLUME + ": " + volume
+  };
+};
+
+//Reducers
+//-----------------------------------------------------------------------------
+const drumReducer = (state = defaultState, action) => {
+  switch (action.type) {
+    case HIT_DRUM:
+      return hitDrum(action.pad);
+      
+    case TOGGLE_POWER:
+      return togglePower(state.power);
+      
+    case TOGGLE_BANK:
+      return toggleBank(state.bank);
+      
+    case ADJUST_VOLUME:
+      return adjustVolume(action.volume);
+      
+    default:
+      return state;
+  }
+};
+
+//Store
+//-----------------------------------------------------------------------------
+const store = Redux.createStore(
+  drumReducer,
+  Redux.applyMiddleware(ReduxThunk.default)
+);
+
+//React Components
+//-----------------------------------------------------------------------------
+class DrumPad extends React.Component {
+  constructor(props) {
+    super(props);
+    this.handleClick = this.handleClick.bind(this);
+    this.handleKeyPress = this.handleKeyPress.bind(this);
+    //this.playSound = this.playSound.bind(this);
+  }
+  
+  componentDidMount() {
+    document.addEventListener("keydown", this.handleKeyPress);
+  }
+  
+  handleKeyPress(event) {
+    if (String.fromCharCode(event.keyCode).toLowerCase() === this.props.chord.toLowerCase()) {
+      this.props.hit(this.props.index);
+    }
+  }
+  
+  handleClick() {
+    this.props.hit(this.props.index);
+  }
+  
+  /*playSound() {
+    const sound = document.getElementById(this.props.chord);
+    sound.currentTime = 0;
+    sound.play();
+  }*/
+  
+  render() {
+    const padStyle = {
+      backgroundColor: "grey",
+      marginTop: 10,
+      boxShadow: "black 3px 3px 5px"
+    };
+    return (
+      <div 
+        id={this.props.id}
+        className="drum-pad"
+        onClick={this.handleClick}
+        style={padStyle}>
+        <audio
+          id={this.props.chord}
+          className="clip"
+          src={this.props.src}/>
+        {this.props.chord}
+      </div>
+    );
+  }
+}
+
+class Display extends React.Component {
+  constructor(props) {
+    super(props);
+  }
+  
+  render() {
+    return (
+      <p className="display" id="display">{this.props.text}</p>
+    );
+  }
+}
+
+class DrumControl extends React.Component {
+  constructor(props) {
+    super(props);
+  }
+  
+  render() {
+    return (
+      <div className="drum-control">
+        <p>{this.props.label}</p>
+        <div className="select">
+          <div 
+            className="inner" 
+            style={{float: "right"}}/>
+        </div>
+      </div>
+    );
+  }
+}
+
+class DrumMachine extends React.Component {
+  constructor(props) {
+    super(props);
+  }
+  
+  render() {
+    const renderPads = () => {
+      return drumPads.map(
+        pad => <DrumPad hit={this.props.hitDrum} {...pad}/>
+      );
+    };
+    return (
+      <div id="drum-machine">
+        <div className="pad-bank">
+          {renderPads()}
+        </div>
+        <div className="controls-container">
+          <DrumControl label={POWER}/>
+          <Display text={this.props.display}/>
+          <DrumControl label={BANK}/>
+        </div>
+      </div>
+    );
+  }
+}
+
+//Mappings
+//-----------------------------------------------------------------------------
+const mapStateToProps = (state) => {
+  return ({...state});
+};
+
+const mapDispatchToProps = (dispatch) => {
+  return {
+    hitDrum: (index) => {
+      dispatch(hitDrumAction(index));
+    }
+  };
+};
+
+//Connector
+//-----------------------------------------------------------------------------
+const Provider = ReactRedux.Provider;
+const Container = ReactRedux.connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(DrumMachine);
+
+//Root Render
+//-----------------------------------------------------------------------------
+ReactDOM.render(
+  <Provider store={store}>
+    <Container/>
+  </Provider>,
+  document.getElementById("root")
+);
